@@ -1,0 +1,16 @@
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+h1, h2 {
+  color: #1a202c;
+}
+
+input, select {
+  border-radius: 0.375rem;
+}
+
+button:hover {
+  opacity: 0.9;
+  transition: opacity 0.2s ease-in-out;
+}

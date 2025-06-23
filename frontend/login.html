@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Asistencias - Login</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <style>
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .card-shadow {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    .role-indicator {
+      transition: all 0.3s ease;
+    }
+    .pulse-animation {
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .role-admin { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+    .role-docente { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+    .role-alumno { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4">
+  <!-- Contenedor principal -->
+  <div class="w-full max-w-md">
+    <!-- Header con logo y título -->
+    <div class="text-center mb-8">
+      <div class="bg-white rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center card-shadow">
+        <i class="fas fa-graduation-cap text-3xl text-indigo-600"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-white mb-2">Sistema de Asistencias</h1>
+      <p class="text-indigo-100">Accede con tu tarjeta RFID</p>
+    </div>
+
+    <!-- Tarjeta de login -->
+    <div class="bg-white rounded-2xl card-shadow overflow-hidden">
+      <!-- Indicador de rol dinámico -->
+      <div id="role-indicator" class="h-2 bg-gray-300 transition-all duration-500"></div>
+      
+      <!-- Contenido del formulario -->
+      <div class="p-8">
+        <!-- Estado de la tarjeta -->
+        <div class="text-center mb-6">
+          <div id="card-status" class="inline-flex items-center px-4 py-2 rounded-full bg-gray-100 text-gray-600">
+            <i class="fas fa-credit-card mr-2"></i>
+            <span>Esperando tarjeta...</span>
+          </div>
+        </div>
+
+        <!-- Información del usuario -->
+        <div id="user-info" class="hidden mb-6 p-4 rounded-lg bg-gray-50 border-l-4 border-blue-500">
+          <div class="flex items-center">
+            <div id="user-avatar" class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold mr-4">
+              <i class="fas fa-user"></i>
+            </div>
+            <div>
+              <h3 id="user-name" class="font-semibold text-gray-800"></h3>
+              <p id="user-role" class="text-sm text-gray-600"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Formulario -->
+        <form id="login-form" class="space-y-6">
+          <!-- Campo UID -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-id-card mr-2"></i>UID de la Tarjeta
+            </label>
+            <input 
+              id="uid-display" 
+              type="text" 
+              readonly 
+              class="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 font-mono text-center text-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Pase su tarjeta RFID"
+            >
+          </div>
+
+          <!-- Campo Contraseña -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              <i class="fas fa-lock mr-2"></i>Contraseña
+            </label>
+            <div class="relative">
+              <input 
+                id="contraseña" 
+                type="password" 
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-12"
+                placeholder="Ingrese su contraseña"
+              >
+              <button 
+                type="button" 
+                id="toggle-password"
+                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Botón de login -->
+          <button 
+            id="login-btn" 
+            type="submit" 
+            disabled
+            class="w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed bg-indigo-600 hover:bg-indigo-700 text-white transform hover:scale-105"
+          >
+            <i class="fas fa-sign-in-alt mr-2"></i>
+            <span id="login-btn-text">Iniciar Sesión</span>
+          </button>
+        </form>
+
+        <!-- Mensaje de estado -->
+        <div id="mensaje" class="mt-4 text-center text-sm font-medium"></div>
+
+        <!-- Enlaces adicionales -->
+        <div class="mt-6 text-center space-y-2">
+          <a href="admin_login.html" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+            <i class="fas fa-user-shield mr-1"></i>Acceso Administrativo
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-8 text-indigo-100 text-sm">
+      <p>&copy; 2024 Sistema de Asistencias Universitario</p>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+  <script>
+    const uid = localStorage.getItem("uid");
+    if (uid) {
+      document.getElementById("uid-display").value = uid;
+    }
+  </script>
+</body>
+</html>

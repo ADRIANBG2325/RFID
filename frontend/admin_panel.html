@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>Panel de Administración - Sistema RFID</title>
+   <script src="https://cdn.tailwindcss.com"></script>
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+   <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+</head>
+<body class="bg-gray-50">
+   <!-- Sidebar -->
+   <div class="fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-blue-600 to-blue-800 shadow-xl">
+       <div class="flex flex-col h-full">
+           <!-- Header -->
+           <div class="flex items-center justify-center h-16 bg-blue-900 text-white">
+               <i class="fas fa-shield-alt text-2xl mr-3"></i>
+               <h1 class="text-xl font-bold">Sistema RFID</h1>
+           </div>
+           
+           <!-- User Info -->
+           <div class="p-4 bg-blue-700 text-white">
+               <div class="flex items-center">
+                   <i class="fas fa-user-shield text-2xl mr-3"></i>
+                   <div>
+                       <p class="font-medium">Bienvenido</p>
+                       <p class="text-sm opacity-90" id="admin-name">Administrador</p>
+                   </div>
+               </div>
+           </div>
+           
+           <!-- Semestre Info -->
+           <div class="p-4 bg-blue-600 text-white border-b border-blue-500">
+               <div class="text-center">
+                   <p class="text-sm opacity-90">Semestre Actual</p>
+                   <p class="font-bold" id="semestre-sidebar">2025-1</p>
+               </div>
+           </div>
+           
+           <!-- Navigation -->
+           <nav class="flex-1 p-4 space-y-2">
+               <button class="sidebar-button active w-full flex items-center px-4 py-3 text-left text-white rounded-lg hover:bg-blue-700 transition-colors" data-tab="dashboard">
+                   <i class="fas fa-tachometer-alt mr-3"></i>
+                   Dashboard
+               </button>
+               
+               <button class="sidebar-button w-full flex items-center px-4 py-3 text-left text-white rounded-lg hover:bg-blue-700 transition-colors" data-tab="usuarios">
+                   <i class="fas fa-users mr-3"></i>
+                   Usuarios
+                   <span class="ml-auto bg-blue-500 text-xs px-2 py-1 rounded-full" id="usuarios-sidebar">0</span>
+               </button>
+               
+               <button class="sidebar-button w-full flex items-center px-4 py-3 text-left text-white rounded-lg hover:bg-blue-700 transition-colors" data-tab="docentes">
+                   <i class="fas fa-chalkboard-teacher mr-3"></i>
+                   Docentes
+               </button>
+               
+               <button class="sidebar-button w-full flex items-center px-4 py-3 text-left text-white rounded-lg hover:bg-blue-700 transition-colors" data-tab="alumnos">
+                   <i class="fas fa-graduation-cap mr-3"></i>
+                   Alumnos
+               </button>
+               
+               <button class="sidebar-button w-full flex items-center px-4 py-3 text-left text-white rounded-lg hover:bg-blue-700 transition-colors" data-tab="asistencias-docentes">
+                   <i class="fas fa-chart-line mr-3"></i>
+                   Asistencias Docentes
+               </button>
+               
+               <button class="sidebar-button w-full flex items-center px-4 py-3 text-left text-white rounded-lg hover:bg-blue-700 transition-colors" data-tab="carreras">
+                   <i class="fas fa-book mr-3"></i>
+                   Carreras
+               </button>
+               
+               <button class="sidebar-button w-full flex items-center px-4 py-3 text-left text-white rounded-lg hover:bg-blue-700 transition-colors" data-tab="materias">
+                   <i class="fas fa-clipboard-list mr-3"></i>
+                   Materias
+               </button>
+           </nav>
+           
+           <!-- Logout -->
+           <div class="p-4 border-t border-blue-500">
+               <button id="cerrar-sesion" class="w-full flex items-center px-4 py-3 text-left text-white rounded-lg hover:bg-red-600 transition-colors">
+                   <i class="fas fa-sign-out-alt mr-3"></i>
+                   Cerrar Sesión
+               </button>
+           </div>
+       </div>
+   </div>
+
+   <!-- Main Content -->
+   <div class="ml-64 min-h-screen">
+       <!-- Dashboard Tab -->
+       <div id="dashboard" class="tab-content active p-8">
+           <div class="mb-8">
+               <h1 class="text-3xl font-bold text-gray-800 mb-2">Panel de Administración</h1>
+               <p class="text-gray-600">Gestión completa del sistema de asistencias RFID</p>
+           </div>
+           
+           <!-- Semestre Info -->
+           <div class="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-6 text-white mb-8">
+               <div class="flex items-center justify-between">
+                   <div>
+                       <h2 class="text-2xl font-bold mb-2">Semestre <span id="semestre-actual">2025-1</span></h2>
+                       <p class="opacity-90" id="fechas-semestre">Febrero - Julio 2025</p>
+                   </div>
+                   <div class="text-right">
+                       <i class="fas fa-calendar-alt text-4xl opacity-80"></i>
+                   </div>
+               </div>
+           </div>
+           
+           <!-- Stats Cards -->
+           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+               <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-blue-500">
+                   <div class="flex items-center justify-between">
+                       <div>
+                           <p class="text-gray-600 text-sm font-medium">Total Usuarios</p>
+                           <p class="text-3xl font-bold text-gray-800" id="total-usuarios">0</p>
+                       </div>
+                       <div class="p-3 bg-blue-100 rounded-full">
+                           <i class="fas fa-users text-blue-600 text-xl"></i>
+                       </div>
+                   </div>
+               </div>
+               
+               <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-green-500">
+                   <div class="flex items-center justify-between">
+                       <div>
+                           <p class="text-gray-600 text-sm font-medium">Total Alumnos</p>
+                           <p class="text-3xl font-bold text-gray-800" id="total-alumnos">0</p>
+                       </div>
+                       <div class="p-3 bg-green-100 rounded-full">
+                           <i class="fas fa-graduation-cap text-green-600 text-xl"></i>
+                       </div>
+                   </div>
+               </div>
+               
+               <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-purple-500">
+                   <div class="flex items-center justify-between">
+                       <div>
+                           <p class="text-gray-600 text-sm font-medium">Total Docentes</p>
+                           <p class="text-3xl font-bold text-gray-800" id="total-docentes">0</p>
+                       </div>
+                       <div class="p-3 bg-purple-100 rounded-full">
+                           <i class="fas fa-chalkboard-teacher text-purple-600 text-xl"></i>
+                       </div>
+                   </div>
+               </div>
+               
+               <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-orange-500">
+                   <div class="flex items-center justify-between">
+                       <div>
+                           <p class="text-gray-600 text-sm font-medium">Asistencias Hoy</p>
+                           <p class="text-3xl font-bold text-gray-800" id="asistencias-hoy">0</p>
+                       </div>
+                       <div class="p-3 bg-orange-100 rounded-full">
+                           <i class="fas fa-calendar-check text-orange-600 text-xl"></i>
+                       </div>
+                   </div>
+               </div>
+           </div>
+           
+           <!-- Activity Section -->
+           <div class="bg-white rounded-2xl shadow-lg p-6">
+               <h3 class="text-xl font-bold text-gray-800 mb-6">Actividad Reciente</h3>
+               <div id="actividad-reciente">
+                   <div class="text-center py-8 text-gray-500">
+                       <i class="fas fa-spinner fa-spin text-2xl mb-4"></i>
+                       <p>Cargando actividad...</p>
+                   </div>
+               </div>
+           </div>
+       </div>
+
+       <!-- Usuarios Tab -->
+       <div id="usuarios" class="tab-content hidden p-8">
+           <div class="flex justify-between items-center mb-8">
+               <div>
+                   <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Usuarios</h1>
+                   <p class="text-gray-600">Administrar usuarios del sistema</p>
+               </div>
+               <button onclick="exportarExcelCompleto()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                   <i class="fas fa-download mr-2"></i>
+                   Exportar Excel
+               </button>
+           </div>
+           
+           <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+               <div class="overflow-x-auto">
+                   <table class="w-full">
+                       <thead class="bg-gray-50">
+                           <tr>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">UID</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                           </tr>
+                       </thead>
+                       <tbody id="tabla-usuarios" class="bg-white divide-y divide-gray-200">
+                           <tr>
+                               <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                   <i class="fas fa-spinner fa-spin mr-2"></i>
+                                   Cargando usuarios...
+                               </td>
+                           </tr>
+                       </tbody>
+                   </table>
+               </div>
+           </div>
+       </div>
+
+       <!-- Docentes Tab -->
+       <div id="docentes" class="tab-content hidden p-8">
+           <div class="flex justify-between items-center mb-8">
+               <div>
+                   <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Docentes</h1>
+                   <p class="text-gray-600">Administrar docentes y sus asignaciones</p>
+               </div>
+               <div class="flex space-x-4">
+                   <button onclick="exportarExcelCompleto()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                       <i class="fas fa-download mr-2"></i>
+                       Exportar Excel
+                   </button>
+                   <button onclick="mostrarModalCrearDocente()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                       <i class="fas fa-plus mr-2"></i>
+                       Nuevo Docente
+                   </button>
+               </div>
+           </div>
+           
+           <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+               <div class="overflow-x-auto">
+                   <table class="w-full">
+                       <thead class="bg-gray-50">
+                           <tr>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Clave</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Especialidad</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                           </tr>
+                       </thead>
+                       <tbody id="tabla-docentes" class="bg-white divide-y divide-gray-200">
+                           <tr>
+                               <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                   <i class="fas fa-spinner fa-spin mr-2"></i>
+                                   Cargando docentes...
+                               </td>
+                           </tr>
+                       </tbody>
+                   </table>
+               </div>
+           </div>
+       </div>
+
+       <!-- Alumnos Tab -->
+       <div id="alumnos" class="tab-content hidden p-8">
+           <div class="flex justify-between items-center mb-8">
+               <div>
+                   <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Alumnos</h1>
+                   <p class="text-gray-600">Administrar alumnos del sistema</p>
+               </div>
+               <div class="flex space-x-4">
+                   <button id="eliminar-seleccionados" onclick="eliminarAlumnosSeleccionados()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium transition-colors" style="display: none;">
+                       <i class="fas fa-trash mr-2"></i>
+                       Eliminar Seleccionados
+                   </button>
+                   <button onclick="exportarExcelCompleto()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                       <i class="fas fa-download mr-2"></i>
+                       Exportar Excel
+                   </button>
+                   <button onclick="mostrarModalCrearAlumno()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                       <i class="fas fa-plus mr-2"></i>
+                       Nuevo Alumno
+                   </button>
+               </div>
+           </div>
+           
+           <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+               <div class="overflow-x-auto">
+                   <table class="w-full">
+                       <thead class="bg-gray-50">
+                           <tr>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                   <input type="checkbox" onchange="seleccionarTodosAlumnos()" class="rounded">
+                               </th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matrícula</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Carrera</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Semestre</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Grupo</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                               <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                           </tr>
+                       </thead>
+                       <tbody id="tabla-alumnos" class="bg-white divide-y divide-gray-200">
+                           <tr>
+                               <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                                   <i class="fas fa-spinner fa-spin mr-2"></i>
+                                   Cargando alumnos...
+                               </td>
+                           </tr>
+                       </tbody>
+                   </table>
+               </div>
+           </div>
+       </div>
+
+       <!-- Asistencias Docentes Tab -->
+       <div id="asistencias-docentes" class="tab-content hidden p-8">
+           <div class="flex justify-between items-center mb-8">
+               <div>
+                   <h1 class="text-3xl font-bold text-gray-800 mb-2">Asistencias de Docentes</h1>
+                   <p class="text-gray-600">Monitoreo y estadísticas de asistencias docentes</p>
+               </div>
+           </div>
+           
+           <!-- Stats Cards -->
+           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+               <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-blue-500">
+                   <div class="flex items-center justify-between">
+                       <div>
+                           <p class="text-gray-600 text-sm font-medium">Docentes Activos</p>
+                           <p class="text-3xl font-bold text-gray-800" id="docentes-activos">0</p>
+                       </div>
+                       <div class="p-3 bg-blue-100 rounded-full">
+                           <i class="fas fa-chalkboard-teacher text-blue-600 text-xl"></i>
+                       </div>
+                   </div>
+               </div>
+               
+               <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-green-500">
+                   <div class="flex items-center justify-between">
+                       <div>
+                           <p class="text-gray-600 text-sm font-medium">Promedio Asistencia</p>
+                           <p class="text-3xl font-bold text-gray-800" id="promedio-asistencia">0%</p>
+                       </div>
+                       <div class="p-3 bg-green-100 rounded-full">
+                           <i class="fas fa-percentage text-green-600 text-xl"></i>
+                       </div>
+                   </div>
+               </div>
+               
+               <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-purple-500">
+                   <div class="flex items-center justify-between">
+                       <div>
+                           <p class="text-gray-600 text-sm font-medium">Clases Hoy</p>
+                           <p class="text-3xl font-bold text-gray-800" id="clases-hoy">0</p>
+                       </div>
+                       <div class="p-3 bg-purple-100 rounded-full">
+                           <i class="fas fa-calendar-day text-purple-600 text-xl"></i>
+                       </div>
+                   </div>
+               </div>
+               
+               <div class="bg-white rounded-2xl shadow-lg p-6 border-l-4 border-orange-500">
+                   <div class="flex items-center justify-between">
+                       <div>
+                           <p class="text-gray-600 text-sm font-medium">Materias Asignadas</p>
+                           <p class="text-3xl font-bold text-gray-800" id="materias-asignadas">0</p>
+                       </div>
+                       <div class="p-3 bg-orange-100 rounded-full">
+                           <i class="fas fa-book text-orange-600 text-xl"></i>
+                       </div>
+                   </div>
+               </div>
+           </div>
+           
+           <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6" id="lista-asistencias-docentes">
+               <div class="col-span-full text-center py-8 text-gray-500">
+                   <i class="fas fa-spinner fa-spin text-2xl mb-4"></i>
+                   <p>Cargando asistencias de docentes...</p>
+               </div>
+           </div>
+       </div>
+
+       <!-- Carreras Tab -->
+       <div id="carreras" class="tab-content hidden p-8">
+           <div class="flex justify-between items-center mb-8">
+               <div>
+                   <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Carreras</h1>
+                   <p class="text-gray-600">Administrar carreras del instituto</p>
+               </div>
+           </div>
+           
+           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="lista-carreras">
+               <div class="col-span-full text-center py-8 text-gray-500">
+                   <i class="fas fa-spinner fa-spin text-2xl mb-4"></i>
+                   <p>Cargando carreras...</p>
+               </div>
+           </div>
+       </div>
+
+       <!-- Materias Tab -->
+       <div id="materias" class="tab-content hidden p-8">
+           <div class="flex justify-between items-center mb-8">
+               <div>
+                   <h1 class="text-3xl font-bold text-gray-800 mb-2">Gestión de Materias</h1>
+                   <p class="text-gray-600">Ver materias, docentes y horarios asignados</p>
+               </div>
+               <button onclick="exportarHorarios()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                   <i class="fas fa-download mr-2"></i>
+                   Exportar Horarios
+               </button>
+           </div>
+           
+           <!-- Filtros -->
+           <div class="bg-white rounded-2xl shadow-lg p-6 mb-8">
+               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <div>
+                       <label class="block text-sm font-medium text-gray-700 mb-2">Carrera</label>
+                       <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                           <option value="">Todas las carreras</option>
+                       </select>
+                   </div>
+                   <div>
+                       <label class="block text-sm font-medium text-gray-700 mb-2">Semestre</label>
+                       <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                           <option value="">Todos los semestres</option>
+                       </select>
+                   </div>
+                   <div>
+                       <label class="block text-sm font-medium text-gray-700 mb-2">Día</label>
+                       <select class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                           <option value="">Todos los días</option>
+                       </select>
+                   </div>
+               </div>
+           </div>
+           
+           <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6" id="lista-materias">
+               <div class="col-span-full text-center py-8 text-gray-500">
+                   <i class="fas fa-spinner fa-spin text-2xl mb-4"></i>
+                   <p>Cargando materias...</p>
+               </div>
+           </div>
+       </div>
+   </div>
+
+   <!-- Modal Crear Docente - SIN CARRERAS -->
+   <div id="modal-crear-docente" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+       <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+           <div class="p-6 border-b border-gray-200">
+               <div class="flex justify-between items-center">
+                   <h3 class="text-xl font-bold text-gray-800">Crear Nuevo Docente</h3>
+                   <button onclick="cerrarModalCrearDocente()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+               </div>
+           </div>
+           
+           <form id="form-crear-docente" onsubmit="crearDocente(event)" class="p-6">
+               <div class="space-y-4">
+                   <div>
+                       <label for="docente-nombre" class="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
+                       <input type="text" id="docente-nombre" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Nombre completo del docente">
+                   </div>
+                   
+                   <div>
+                       <label for="docente-clave" class="block text-sm font-medium text-gray-700 mb-2">Clave Docente</label>
+                       <input type="text" id="docente-clave" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Clave única del docente">
+                   </div>
+                   
+                   <div>
+                       <label for="docente-especialidad" class="block text-sm font-medium text-gray-700 mb-2">Especialidad</label>
+                       <input type="text" id="docente-especialidad" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Especialidad del docente">
+                   </div>
+               </div>
+               
+               <div class="flex space-x-4 mt-6">
+                   <button type="button" onclick="cerrarModalCrearDocente()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 rounded-lg font-medium transition-colors">
+                       Cancelar
+                   </button>
+                   <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-colors">
+                       Crear Docente
+                   </button>
+               </div>
+           </form>
+       </div>
+   </div>
+
+   <!-- Modal Crear Alumno -->
+   <div id="modal-crear-alumno" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+       <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+           <div class="p-6 border-b border-gray-200">
+               <div class="flex justify-between items-center">
+                   <h3 class="text-xl font-bold text-gray-800">Crear Nuevo Alumno</h3>
+                   <button onclick="cerrarModalCrearAlumno()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+               </div>
+           </div>
+           
+           <form id="form-crear-alumno" onsubmit="crearAlumno(event)" class="p-6">
+               <div class="space-y-4">
+                   <div>
+                       <label for="alumno-nombre" class="block text-sm font-medium text-gray-700 mb-2">Nombre Completo</label>
+                       <input type="text" id="alumno-nombre" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Nombre completo del alumno">
+                   </div>
+                   
+                   <div>
+                       <label for="alumno-matricula" class="block text-sm font-medium text-gray-700 mb-2">Matrícula</label>
+                       <input type="text" id="alumno-matricula" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Matrícula del alumno">
+                   </div>
+                   
+                   <div>
+                       <label for="alumno-carrera" class="block text-sm font-medium text-gray-700 mb-2">Carrera</label>
+                       <select id="alumno-carrera" required onchange="actualizarSemestresPermitidos()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                           <option value="">Seleccionar carrera...</option>
+                       </select>
+                   </div>
+                   
+                   <div>
+                       <label for="alumno-semestre" class="block text-sm font-medium text-gray-700 mb-2">Semestre</label>
+                       <select id="alumno-semestre" required onchange="generarCodigoGrupo()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                           <option value="">Seleccionar...</option>
+                       </select>
+                       <p id="semestre-info" class="text-xs text-gray-500 mt-1">Primero selecciona una carrera</p>
+                   </div>
+                   
+                   <div>
+                       <label for="alumno-numero-grupo" class="block text-sm font-medium text-gray-700 mb-2">Número de Grupo</label>
+                       <select id="alumno-numero-grupo" required onchange="generarCodigoGrupo()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                           <option value="">Seleccionar...</option>
+                       </select>
+                   </div>
+                   
+                   <div>
+                       <label for="alumno-grupo" class="block text-sm font-medium text-gray-700 mb-2">Código de Grupo</label>
+                       <input type="text" id="alumno-grupo" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" placeholder="Se genera automáticamente">
+                       <p class="text-xs text-gray-500 mt-1">Formato: CarreraSemestre0Grupo (ej: 1201)</p>
+                   </div>
+               </div>
+               
+               <div class="flex space-x-4 mt-6">
+                   <button type="button" onclick="cerrarModalCrearAlumno()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 rounded-lg font-medium transition-colors">
+                       Cancelar
+                   </button>
+                   <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-colors">
+                       Crear Alumno
+                   </button>
+               </div>
+           </form>
+       </div>
+   </div>
+
+   <!-- Modal Asignar Materias -->
+   <div id="modal-asignar-materias" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
+       <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+           <div class="p-6 border-b border-gray-200">
+               <div class="flex justify-between items-center">
+                   <h3 class="text-xl font-bold text-gray-800">Asignar Materias a Docente</h3>
+                   <button onclick="cerrarModalAsignarMaterias()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+               </div>
+           </div>
+           
+           <form onsubmit="asignarMaterias(event)" class="p-6">
+               <!-- Selector de Docente -->
+               <div id="selector-docente" class="mb-6">
+                   <label class="block text-sm font-medium text-gray-700 mb-2">Seleccionar Docente</label>
+                   <select id="docente-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                       <option value="">Seleccionar docente...</option>
+                   </select>
+                   <button type="button" onclick="seleccionarDocente()" class="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                       Continuar
+                   </button>
+               </div>
+               
+               <!-- Docente Seleccionado -->
+               <div id="docente-seleccionado" class="mb-6" style="display: none;">
+                   <div class="bg-blue-50 rounded-lg p-4">
+                       <h4 class="font-semibold text-blue-800">Docente Seleccionado:</h4>
+                       <p id="docente-seleccionado-nombre" class="text-blue-700"></p>
+                   </div>
+               </div>
+               
+               <!-- Selección de Carrera y Semestre -->
+               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                   <div>
+                       <label for="materia-carrera" class="block text-sm font-medium text-gray-700 mb-2">Carrera</label>
+                       <select id="materia-carrera" required onchange="cargarSemestresDisponibles()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                           <option value="">Seleccionar carrera...</option>
+                       </select>
+                   </div>
+                   
+                   <div>
+                       <label for="materia-semestre" class="block text-sm font-medium text-gray-700 mb-2">Semestre</label>
+                       <select id="materia-semestre" required onchange="cargarMateriasPorCarrera()" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                           <option value="">Primero selecciona una carrera...</option>
+                       </select>
+                   </div>
+               </div>
+               
+               <!-- Selección de Materias -->
+               <div class="mb-6">
+                   <label class="block text-sm font-medium text-gray-700 mb-2">Materias Disponibles</label>
+                   <div id="materias-container" class="border border-gray-300 rounded-lg p-4 min-h-[100px]">
+                       <p class="text-gray-500 text-sm">Selecciona carrera y semestre...</p>
+                   </div>
+               </div>
+               
+               <!-- Configuración de Horarios -->
+               <div id="horarios-container" style="display: none;">
+                   <h4 class="text-lg font-semibold text-gray-800 mb-4">Configuración de Horarios</h4>
+                   <div id="horarios-materias"></div>
+                   
+                   <div class="flex space-x-4 mt-6">
+                       <button type="button" onclick="cerrarModalAsignarMaterias()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-3 rounded-lg font-medium transition-colors">
+                           Cancelar
+                       </button>
+                       <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-medium transition-colors">
+                           Asignar Materias
+                       </button>
+                   </div>
+               </div>
+           </form>
+       </div>
+   </div>
+
+   <script src="admin_panel.js"></script>
+</body>
+</html>

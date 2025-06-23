@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Asistencias RFID</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">
+                🎫 Control de Asistencias RFID
+            </h1>
+            
+            <!-- Indicador de conexión -->
+            <div class="flex items-center justify-center mb-4 p-3 bg-gray-50 rounded">
+                <div id="connection-indicator" class="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                <span id="connection-text" class="text-sm text-red-600">Desconectado</span>
+            </div>
+            
+            <!-- Mensaje de estado -->
+            <div id="mensaje" class="mb-4 text-lg text-blue-600 text-center">
+                Iniciando sistema...
+            </div>
+            
+            <!-- Área de respuesta -->
+            <div id="respuesta" class="text-center">
+                <!-- Aquí se mostrarán las respuestas del sistema -->
+            </div>
+            
+            <!-- Información del sistema -->
+            <div class="mt-6 p-4 bg-blue-50 rounded text-sm text-gray-600">
+                <p><strong>Instrucciones:</strong></p>
+                <ul class="list-disc list-inside mt-2">
+                    <li>Acerque su tarjeta RFID al lector</li>
+                    <li>El sistema detectará automáticamente su UID</li>
+                    <li>Será redirigido según su estado de registro</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUID = null;
+        let socket = null;
+        let connectionAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        const RECONNECT_DELAY = 3000;
+
+        const mensajeElement = document.getElementById("mensaje");
+        const respuestaElement = document.getElementById("respuesta");
+
+        function updateStatus(message, type = "info") {
+            if (mensajeElement) {
+                mensajeElement.textContent = message;
+                mensajeElement.className = `mb-4 text-lg text-center ${
+                    type === "error" ? "text-red-600" : 
+                    type === "success" ? "text-green-600" : "text-blue-600"
+                }`;
+            }
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+
+        function updateConnectionIndicator(connected) {
+            const indicator = document.getElementById("connection-indicator");
+            const text = document.getElementById("connection-text");
+
+            if (indicator && text) {
+                if (connected) {
+                    indicator.className = "w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2";
+                    text.textContent = "Conectado";
+                    text.className = "text-sm text-green-600";
+                } else {
+                    indicator.className = "w-3 h-3 bg-red-500 rounded-full mr-2";
+                    text.textContent = "Desconectado";
+                    text.className = "text-sm text-red-600";
+                }
+            }
+        }
+
+        function connectToBackend() {
+            try {
+                updateStatus("Conectando al servidor...", "info");
+                updateConnectionIndicator(false);
+
+                const socketURL = window.location.origin;
+                console.log(`🌐 Conectando a: ${socketURL}`);
+
+                socket = io(socketURL, {
+                    transports: ["polling", "websocket"],
+                    timeout: 10000,
+                    forceNew: true,
+                });
+
+                socket.on("connect", () => {
+                    console.log(`✅ Conectado al backend`);
+                    updateStatus("Conectado al servidor. Esperando tarjeta RFID...", "success");
+                    updateConnectionIndicator(true);
+                    connectionAttempts = 0;
+                    socket.emit("ping", { message: "Frontend conectado" });
+                });
+
+                socket.on("connect_error", (error) => {
+                    console.error("❌ Error de conexión:", error);
+                    updateStatus("Error de conexión al servidor", "error");
+                    updateConnectionIndicator(false);
+                    attemptReconnect();
+                });
+
+                socket.on("disconnect", (reason) => {
+                    console.warn("🔌 Desconectado del backend:", reason);
+                    updateStatus("Desconectado del servidor", "error");
+                    updateConnectionIndicator(false);
+                });
+
+                socket.on("respuesta_uid", (data) => {
+                    console.log("📥 UID recibido del backend:", data);
+                    handleReceivedUID(data);
+                });
+
+                socket.on("pong", (data) => {
+                    console.log("🏓 Pong recibido:", data);
+                });
+
+            } catch (error) {
+                console.error("❌ Error inicializando Socket.IO:", error);
+                updateStatus("Error inicializando conexión", "error");
+                updateConnectionIndicator(false);
+            }
+        }
+
+        function attemptReconnect() {
+            if (connectionAttempts < MAX_RECONNECT_ATTEMPTS) {
+                connectionAttempts++;
+                updateStatus(`Reintentando conexión... (${connectionAttempts}/${MAX_RECONNECT_ATTEMPTS})`, "info");
+                setTimeout(connectToBackend, RECONNECT_DELAY);
+            } else {
+                updateStatus("No se pudo conectar al servidor", "error");
+                updateConnectionIndicator(false);
+            }
+        }
+
+        function handleReceivedUID(data) {
+            const uid = data.uid || data;
+            if (!uid) return;
+
+            currentUID = uid;
+            console.log("🎫 UID procesado:", currentUID);
+            updateStatus(`UID detectado: ${currentUID}`, "success");
+            verificarEstadoUID(currentUID);
+        }
+
+        async function verificarEstadoUID(uid) {
+            try {
+                updateStatus("Verificando UID...", "info");
+
+                // Verificar si es administrador
+                const responseAdmin = await fetch("/usuarios/verificar_uid_admin/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                    },
+                    body: JSON.stringify({ uid: uid }),
+                });
+
+                if (responseAdmin.ok) {
+                    const dataAdmin = await responseAdmin.json();
+                    if (dataAdmin.existe) {
+                        updateStatus("Administrador detectado", "success");
+                        respuestaElement.innerHTML = `
+                            <div class="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                                <strong>🔐 Administrador detectado</strong><br>
+                                <strong>Nombre:</strong> ${dataAdmin.admin.nombre}<br>
+                                <strong>UID:</strong> ${uid}
+                            </div>
+                        `;
+                        return;
+                    }
+                }
+
+                // Verificar usuario normal
+                const response = await fetch("/usuarios/verificar_uid/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Accept: "application/json",
+                    },
+                    body: JSON.stringify({ uid: uid }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.nuevo || !data.existe) {
+                    updateStatus("UID no registrado", "info");
+                    respuestaElement.innerHTML = `
+                        <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                            <strong>👤 Usuario nuevo detectado</strong><br>
+                            <strong>UID:</strong> ${uid}<br>
+                            <p class="mt-2">Necesita registrarse en el sistema</p>
+                        </div>
+                    `;
+                } else {
+                    updateStatus("Usuario encontrado", "success");
+                    respuestaElement.innerHTML = `
+                        <div class="mt-4 p-4 bg-green-50 border border-green-200 rounded">
+                            <strong>✅ Usuario registrado</strong><br>
+                            <strong>Nombre:</strong> ${data.usuario?.nombre || "N/A"}<br>
+                            <strong>Rol:</strong> ${data.usuario?.rol || "N/A"}<br>
+                        </div>
+                    `;
+                }
+
+            } catch (error) {
+                console.error("❌ Error verificando UID:", error);
+                updateStatus("Error verificando UID", "error");
+                respuestaElement.innerHTML = `
+                    <div class="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+                        <strong>❌ Error:</strong> ${error.message}<br>
+                        <small>UID: ${uid}</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Inicializar cuando se carga la página
+        document.addEventListener("DOMContentLoaded", () => {
+            console.log("🚀 Iniciando aplicación frontend...");
+            updateStatus("Iniciando aplicación...", "info");
+            connectToBackend();
+        });
+
+        // Limpiar al salir
+        window.addEventListener("beforeunload", () => {
+            if (socket) {
+                socket.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>

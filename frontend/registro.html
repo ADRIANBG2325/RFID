@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Registro de Usuario</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .card-shadow {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+    .role-indicator {
+      transition: all 0.3s ease;
+    }
+    .role-alumno { border-left: 4px solid #10b981; background: linear-gradient(90deg, #ecfdf5, #ffffff); }
+    .role-docente { border-left: 4px solid #3b82f6; background: linear-gradient(90deg, #eff6ff, #ffffff); }
+    .role-admin { border-left: 4px solid #8b5cf6; background: linear-gradient(90deg, #f3e8ff, #ffffff); }
+    
+    .input-group {
+      position: relative;
+      margin-bottom: 1.5rem;
+    }
+    .input-group input, .input-group select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      background: #ffffff;
+    }
+    .input-group input:focus, .input-group select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    .input-group label {
+      position: absolute;
+      left: 16px;
+      top: -8px;
+      background: white;
+      padding: 0 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      color: white;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+    }
+    .btn-primary:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .status-card {
+      border-radius: 12px;
+      padding: 16px;
+      margin: 16px 0;
+      border-left: 4px solid;
+    }
+    .status-loading { border-color: #3b82f6; background: #eff6ff; }
+    .status-success { border-color: #10b981; background: #ecfdf5; }
+    .status-error { border-color: #ef4444; background: #fef2f2; }
+    
+    .user-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: white;
+      margin: 0 auto 16px;
+    }
+    .avatar-alumno { background: linear-gradient(135deg, #10b981, #059669); }
+    .avatar-docente { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .avatar-admin { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    
+    .uid-display {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .password-strength {
+      height: 4px;
+      border-radius: 2px;
+      margin-top: 8px;
+      transition: all 0.3s ease;
+    }
+    .strength-weak { background: #ef4444; width: 25%; }
+    .strength-fair { background: #f59e0b; width: 50%; }
+    .strength-good { background: #3b82f6; width: 75%; }
+    .strength-strong { background: #10b981; width: 100%; }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen py-8">
+  <div class="max-w-2xl mx-auto px-4">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div class="bg-white rounded-full w-20 h-20 mx-auto mb-4 flex items-center justify-center card-shadow">
+        <i class="fas fa-user-plus text-3xl text-blue-600"></i>
+      </div>
+      <h1 class="text-3xl font-bold text-white mb-2">Registro de Usuario</h1>
+      <p class="text-blue-100">Sistema de Control de Asistencias</p>
+    </div>
+
+    <!-- UID Display -->
+    <div id="uid-container" class="bg-white rounded-xl p-4 mb-6 card-shadow">
+      <div class="text-center">
+        <i class="fas fa-id-card text-2xl text-gray-400 mb-2"></i>
+        <p class="text-sm text-gray-600 mb-2">UID de la Tarjeta</p>
+        <div id="uid-display" class="uid-display">
+          <span id="uid-value">Esperando tarjeta...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Form -->
+    <div class="bg-white rounded-xl p-8 card-shadow">
+      <form id="registro-form">
+        <input type="hidden" id="uid" name="uid" />
+        
+        <!-- Role Selection -->
+        <div class="input-group">
+          <label for="rol">Tipo de Usuario</label>
+          <select id="rol" class="role-selector">
+            <option value="alumno">👨‍🎓 Alumno</option>
+            <option value="docente">👨‍🏫 Docente</option>
+          </select>
+        </div>
+
+        <!-- Role Indicator -->
+        <div id="role-indicator" class="role-indicator role-alumno rounded-xl p-4 mb-6">
+          <div class="flex items-center">
+            <div id="role-avatar" class="user-avatar avatar-alumno mr-4">
+              <i class="fas fa-graduation-cap"></i>
+            </div>
+            <div>
+              <h3 id="role-title" class="text-lg font-bold text-gray-800">Registro de Alumno</h3>
+              <p id="role-description" class="text-sm text-gray-600">Complete la información para registrar un nuevo alumno</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Section -->
+        <div id="search-section">
+          <div class="input-group">
+            <label id="search-label" for="identificador">Matrícula del Alumno</label>
+            <div class="flex gap-3">
+              <input id="identificador" type="text" placeholder="Ingrese la matrícula" class="flex-1" />
+              <button type="button" id="buscar-btn" class="btn-primary px-6">
+                <i class="fas fa-search mr-2"></i>Buscar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading Status -->
+        <div id="loading-status" class="status-card status-loading hidden">
+          <div class="flex items-center">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
+            <span class="font-medium">Buscando usuario...</span>
+          </div>
+        </div>
+
+        <!-- User Found -->
+        <div id="user-found" class="status-card status-success hidden">
+          <div class="flex items-center mb-4">
+            <i class="fas fa-check-circle text-green-600 text-xl mr-3"></i>
+            <h3 class="font-bold text-green-800">Usuario Encontrado</h3>
+          </div>
+          <div id="user-info" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <!-- User info will be populated here -->
+          </div>
+        </div>
+
+        <!-- Password Section -->
+        <div id="password-section" class="hidden">
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+            <div class="flex items-center mb-2">
+              <i class="fas fa-lock text-blue-600 mr-2"></i>
+              <h3 class="font-bold text-blue-800">Configurar Contraseña</h3>
+            </div>
+            <p class="text-sm text-blue-700">La contraseña debe tener exactamente 8 caracteres con números y letras</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="input-group">
+              <label for="contraseña">Contraseña (8 caracteres)</label>
+              <div class="relative">
+                <input type="password" id="contraseña" maxlength="8" placeholder="••••••••" />
+                <button type="button" id="toggle-password" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+              <div id="password-strength-bar" class="password-strength"></div>
+            </div>
+
+            <div class="input-group">
+              <label for="confirmar">Confirmar Contraseña</label>
+              <div class="relative">
+                <input type="password" id="confirmar" maxlength="8" placeholder="••••••••" />
+                <button type="button" id="toggle-confirm" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="password-feedback" class="text-sm mt-2"></div>
+
+          <!-- Submit Button -->
+          <button type="submit" id="submit-btn" class="btn-primary w-full mt-6" disabled>
+            <i class="fas fa-user-plus mr-2"></i>
+            <span id="submit-text">Registrar Usuario</span>
+          </button>
+        </div>
+
+        <!-- Messages -->
+        <div id="message-container" class="mt-4">
+          <div id="message" class="hidden"></div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-8">
+      <p class="text-blue-100 text-sm">
+        <i class="fas fa-shield-alt mr-1"></i>
+        Sistema Seguro de Registro
+      </p>
+    </div>
+  </div>
+
+  <script src="registro.js"></script>
+  <script>
+    // Initialize UID from localStorage
+    const uid = localStorage.getItem("uid");
+    if (uid) {
+      document.getElementById("uid").value = uid;
+      document.getElementById("uid-value").textContent = uid;
+      document.getElementById("uid-display").className = "uid-display";
+    }
+  </script>
+</body>
+</html>
