@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: rfid-control-system
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+databases:
+  - name: rfid-database
+    databaseName: rfid_db
+    user: rfid_user
